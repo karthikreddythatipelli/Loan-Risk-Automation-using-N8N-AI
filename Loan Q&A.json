@@ -1,0 +1,202 @@
+{
+  "name": "LOan QA system",
+  "nodes": [
+    {
+      "parameters": {
+        "fileSelector": "C:\\Users\\karth\\.n8n-files\\loans_cleaned.xlsx",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1.1,
+      "position": [
+        208,
+        0
+      ],
+      "id": "5dd75b11-7a3d-429e-909f-455d54313854",
+      "name": "Read/Write Files from Disk"
+    },
+    {
+      "parameters": {
+        "operation": "xlsx",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        416,
+        0
+      ],
+      "id": "24bb63f2-3eb7-4246-a346-b1980f1e7370",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "jsCode": "const question = $('Webhook').first().json.query?.question || \"\";\n\n// extract loan id\nconst match = question.match(/\\d{5,}/);\nlet selectedLoan = null;\n\nif (match) {\n    const id = Number(match[0]);\n\n    // AFTER MERGE → each item already has row data\n    if (Number($json.id) === id) {\n        selectedLoan = $json;\n    }\n}\n\nreturn [\n{\n    json: {\n        question,\n        selectedLoan\n    }\n}\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        864,
+        0
+      ],
+      "id": "04d3d8ee-9e6b-4c6c-81a6-70b245cf54de",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "path": "loan-qa",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "dd5e49aa-406c-4f07-97ce-67edd37f1f97",
+      "name": "Webhook",
+      "webhookId": "0239f4b6-d4fa-4bb8-ad61-c51d9ec49269"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        624,
+        0
+      ],
+      "id": "d9b8eb29-c1d7-40d5-9520-fc39b6041037",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a financial analyst.\n\nUser Question:\n{{$json.question}}\n\nLoan Details:\n- Grade: {{$json.selectedLoan.grade}}\n- Interest Rate: {{$json.selectedLoan.interest_rate}}\n- Income: {{$json.selectedLoan.annual_inc}}\n- Purpose: {{$json.selectedLoan.purpose}}\n- Loan Condition: {{$json.selectedLoan.loan_condition}}\n\nGive a short, professional answer (max 2 lines).\nStart with either \"GOOD:\" or \"RISKY:\".\nDo NOT repeat words or add extra sentences.\nNote all the loan amounts are in indian rupees.",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        1072,
+        0
+      ],
+      "id": "160065da-677b-48db-8d1c-8456704d79da",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-3.5-turbo",
+        "options": {
+          "maxTokens": 5000
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        1072,
+        224
+      ],
+      "id": "57ce5c88-4579-4dc6-8f7f-959d7c521e2e",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "EkegDfkoRe48mfky",
+          "name": "OpenRouter account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Read/Write Files from Disk": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Read/Write Files from Disk",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "6676ba90-ad4c-4254-8efd-f6636d15d2ca",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "5ba5392cc2e6c080f33644b19f467ca97b7a85e48ab27f2d461746deb49b6ffe"
+  },
+  "id": "fGDpXS5x1s143gyh",
+  "tags": []
+}
